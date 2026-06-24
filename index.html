@@ -217,6 +217,147 @@
     gap: 16px;
   }
 
+  .end-quiz-btn {
+    font-family: Georgia, serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: var(--text-dark);
+    border: 1px solid var(--text-dark);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  }
+
+  .end-quiz-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(26, 26, 26, 0.12);
+  }
+
+  .quiz-ended .score-btn,
+  .quiz-ended .name-input,
+  .quiz-ended .footer-actions .reset-btn,
+  .quiz-ended .footer-actions .end-quiz-btn {
+    pointer-events: none;
+    opacity: 0.55;
+  }
+
+  .result-overlay {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 248, 240, 0.72);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+    z-index: 200;
+    padding: 24px;
+  }
+
+  .result-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .result-card {
+    width: min(100%, 420px);
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 30px 26px 24px;
+    text-align: center;
+    box-shadow: 0 24px 80px rgba(26, 26, 26, 0.16);
+    transform: translateY(14px) scale(0.96);
+    transition: transform 0.32s cubic-bezier(0.2, 1, 0.2, 1);
+  }
+
+  .result-overlay.visible .result-card {
+    transform: translateY(0) scale(1);
+  }
+
+  .result-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 999px;
+    margin-bottom: 16px;
+  }
+
+  .result-title {
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    font-weight: 400;
+    line-height: 1.1;
+    margin-bottom: 10px;
+    color: var(--text-dark);
+  }
+
+  .result-subtitle {
+    font-size: 1rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .winner-card {
+    margin-top: 18px;
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    animation: winnerPulse 1.2s ease-in-out infinite;
+  }
+
+  .winner-card.p1 {
+    background: linear-gradient(180deg, var(--p1-light), #fff);
+    border-color: rgba(232, 93, 58, 0.22);
+  }
+
+  .winner-card.p2 {
+    background: linear-gradient(180deg, var(--p2-light), #fff);
+    border-color: rgba(45, 125, 210, 0.22);
+  }
+
+  .winner-name {
+    display: block;
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+    color: var(--text-dark);
+    margin-bottom: 6px;
+  }
+
+  .winner-score {
+    font-size: 0.85rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .winner-tie {
+    margin-top: 18px;
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px dashed var(--border);
+    animation: winnerPulse 1.2s ease-in-out infinite;
+  }
+
+  .result-actions {
+    margin-top: 20px;
+  }
+
+  @keyframes winnerPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+
+  @keyframes confettiPop {
+    0% { transform: translateY(0) scale(0.7); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translateY(160px) rotate(240deg) scale(1); opacity: 0; }
+  }
+
   .reset-btn {
     font-family: Georgia, serif;
     font-size: 0.8rem;
@@ -354,15 +495,33 @@
 
 <div class="footer-actions">
   <button class="reset-btn" onclick="resetScores()">Reset Scores</button>
+    <button class="end-quiz-btn" onclick="endQuiz()">End Quiz</button>
   <button class="reset-btn" onclick="resetAll()">New Game</button>
 </div>
 
 <div class="confetti-container" id="confetti"></div>
 
+  <div class="result-overlay" id="resultOverlay" aria-hidden="true">
+    <div class="result-card" id="resultCard" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div class="result-badge" id="resultBadge">Quiz Complete</div>
+      <div class="result-title" id="resultTitle">We have a winner</div>
+      <div class="result-subtitle" id="resultSubtitle">The final scores are in.</div>
+      <div class="winner-card" id="winnerCard">
+        <span class="winner-name" id="winnerName">Player</span>
+        <div class="winner-score" id="winnerScore">0 points</div>
+      </div>
+      <div class="result-actions">
+        <button class="reset-btn" onclick="resetAll()">Play Again</button>
+      </div>
+    </div>
+  </div>
+
 <script>
   let scores = { 1: 0, 2: 0 };
+  let quizEnded = false;
 
   function changeScore(player, delta) {
+    if (quizEnded) return;
     scores[player] = Math.max(0, scores[player] + delta);
     const el = document.getElementById('score' + player);
     el.textContent = scores[player];
@@ -391,6 +550,9 @@
   }
 
   function resetScores() {
+    quizEnded = false;
+    document.body.classList.remove('quiz-ended');
+    hideResults();
     scores = { 1: 0, 2: 0 };
     document.getElementById('score1').textContent = '0';
     document.getElementById('score2').textContent = '0';
@@ -403,7 +565,53 @@
     document.getElementById('name2').value = 'Player 2';
   }
 
-  function burstConfetti(player) {
+  function endQuiz() {
+    if (quizEnded) return;
+
+    quizEnded = true;
+    document.body.classList.add('quiz-ended');
+
+    const name1 = document.getElementById('name1').value.trim() || 'Player 1';
+    const name2 = document.getElementById('name2').value.trim() || 'Player 2';
+    const resultOverlay = document.getElementById('resultOverlay');
+    const resultBadge = document.getElementById('resultBadge');
+    const resultTitle = document.getElementById('resultTitle');
+    const resultSubtitle = document.getElementById('resultSubtitle');
+    const winnerCard = document.getElementById('winnerCard');
+    const winnerName = document.getElementById('winnerName');
+    const winnerScore = document.getElementById('winnerScore');
+
+    if (scores[1] === scores[2]) {
+      resultBadge.textContent = 'Quiz Complete';
+      resultTitle.textContent = 'It is a tie';
+      resultSubtitle.textContent = 'Both players finished on the same score.';
+      winnerCard.className = 'winner-card winner-tie';
+      winnerName.textContent = `${name1} and ${name2}`;
+      winnerScore.textContent = `${scores[1]} points each`;
+    } else {
+      const player = scores[1] > scores[2] ? 1 : 2;
+      const winnerNameText = player === 1 ? name1 : name2;
+      const winnerScoreValue = scores[player];
+      resultBadge.textContent = 'Winner Declared';
+      resultTitle.textContent = `${winnerNameText} wins`;
+      resultSubtitle.textContent = 'Final score locked and celebration unlocked.';
+      winnerCard.className = `winner-card p${player}`;
+      winnerName.textContent = winnerNameText;
+      winnerScore.textContent = `${winnerScoreValue} points`;
+      burstConfetti(player, true);
+    }
+
+    resultOverlay.classList.add('visible');
+    resultOverlay.setAttribute('aria-hidden', 'false');
+  }
+
+  function hideResults() {
+    const resultOverlay = document.getElementById('resultOverlay');
+    resultOverlay.classList.remove('visible');
+    resultOverlay.setAttribute('aria-hidden', 'true');
+  }
+
+  function burstConfetti(player, endQuizBurst = false) {
     const container = document.getElementById('confetti');
     const colors = player === 1
       ? ['#E85D3A', '#F4A261', '#FFD6CC', '#C1440E']
@@ -422,7 +630,7 @@
       const angle = (Math.random() * Math.PI * 2);
       const dist = 40 + Math.random() * 80;
       const dx = Math.cos(angle) * dist;
-      const dy = Math.sin(angle) * dist - 30;
+      const dy = Math.sin(angle) * dist - (endQuizBurst ? 120 : 30);
       const rot = Math.random() * 360;
       const shape = Math.random() > 0.5 ? '50%' : '2px';
 
@@ -432,6 +640,7 @@
         background: ${color};
         border-radius: ${shape};
         transform: translate(-50%, -50%);
+        animation: ${endQuizBurst ? 'confettiPop 0.9s ease-out forwards' : 'none'};
       `;
 
       container.appendChild(piece);
